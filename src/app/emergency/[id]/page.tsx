@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MedicalProfile } from "@/lib/types";
+import HospitalFinder from "@/components/HospitalFinder";
 
 export default function EmergencyPage({ params }: { params: { id: string } }) {
   const { id } = params;
@@ -179,6 +180,9 @@ export default function EmergencyPage({ params }: { params: { id: string } }) {
             </div>
           </section>
         )}
+
+        {/* Nearby Hospitals */}
+        <HospitalFinder />
 
         {/* Footer */}
         <footer className="text-center text-gray-500 text-sm pt-4">

@@ -5,6 +5,36 @@
 @layer base {
   body {
     @apply bg-gray-50 text-gray-900 antialiased;
+    font-size: 1rem;
+    line-height: 1.5;
+  }
+
+  /* Respect user's motion preferences — WCAG 2.3.3 */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+
+  /* Ensure minimum touch target size — WCAG 2.5.8 */
+  button,
+  a,
+  [role="button"],
+  input[type="radio"],
+  input[type="checkbox"] {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* High contrast focus indicators — WCAG 2.4.7 */
+  :focus-visible {
+    outline: 3px solid #1a73e8;
+    outline-offset: 2px;
   }
 }
 

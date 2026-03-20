@@ -1,38 +1,64 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzeWithGemini } from "@/lib/gemini";
-import { AnalysisRequest, AnalysisResponse, Medication, LabResult, Condition, Allergy } from "@/lib/types";
+import { analyzeRequestSchema } from "@/lib/validation";
+import { sanitizeTextInput, sanitizeImageInput } from "@/lib/sanitize";
+import { checkRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
+import type { Medication, LabResult, Condition, Allergy, AnalysisResponse } from "@/lib/types";
 
 export async function POST(request: NextRequest) {
+  const clientIp = request.headers.get("x-forwarded-for") ?? "unknown";
+
+  // Rate limiting: 10 requests per minute per IP
+  const rl = checkRateLimit(`analyze:${clientIp}`, { maxRequests: 10, windowMs: 60_000 });
+  if (!rl.allowed) {
+    logger.warn("Rate limit exceeded", { ip: clientIp, endpoint: "/api/analyze" });
+    return NextResponse.json(
+      { success: false, error: "Too many requests. Please try again later." },
+      { status: 429, headers: rateLimitHeaders(rl) }
+    );
+  }
+
   try {
-    const body: AnalysisRequest = await request.json();
+    const rawBody = await request.json();
 
-    if (!body.type) {
-      return NextResponse.json({ success: false, error: "Missing analysis type" }, { status: 400 });
+    // Validate input with Zod
+    const parseResult = analyzeRequestSchema.safeParse(rawBody);
+    if (!parseResult.success) {
+      const errors = parseResult.error.issues.map((i) => i.message);
+      return NextResponse.json(
+        { success: false, error: "Invalid input", details: errors },
+        { status: 400, headers: rateLimitHeaders(rl) }
+      );
     }
 
-    if (["prescription", "lab_report", "medicine_photo"].includes(body.type) && !body.image) {
-      return NextResponse.json({ success: false, error: "Image required for this analysis type" }, { status: 400 });
-    }
+    const body = parseResult.data;
 
-    if (["voice_text", "free_text"].includes(body.type) && !body.text) {
-      return NextResponse.json({ success: false, error: "Text required for this analysis type" }, { status: 400 });
-    }
+    // Sanitize inputs
+    const sanitizedText = body.text ? sanitizeTextInput(body.text) : undefined;
+    const sanitizedImage = body.image ? sanitizeImageInput(body.image) : undefined;
 
-    const rawResult = await analyzeWithGemini(body.type, body.image, body.text);
+    logger.info("Analysis started", { type: body.type, hasImage: !!body.image, hasText: !!body.text });
+
+    const rawResult = await analyzeWithGemini(body.type, sanitizedImage, sanitizedText);
     const response = transformResult(body.type, rawResult);
 
-    return NextResponse.json(response);
+    logger.info("Analysis complete", { type: body.type, confidence: response.confidence });
+
+    return NextResponse.json(response, { headers: rateLimitHeaders(rl) });
   } catch (error) {
-    console.error("Analysis error:", error instanceof Error ? error.message : "Unknown error");
+    logger.error("Analysis failed", {
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
     return NextResponse.json(
       { success: false, error: "Analysis failed. Please try again." },
-      { status: 500 }
+      { status: 500, headers: rateLimitHeaders(rl) }
     );
   }
 }
 
 function transformResult(
-  type: AnalysisRequest["type"],
+  type: string,
   raw: Record<string, unknown>
 ): AnalysisResponse {
   switch (type) {
@@ -51,11 +77,11 @@ function transformResult(
 }
 
 function transformPrescription(raw: Record<string, unknown>): AnalysisResponse {
-  const meds = raw.medications as Array<Record<string, unknown>> || [];
+  const meds = (raw.medications as Array<Record<string, unknown>>) ?? [];
   const medications: Medication[] = meds.map((m) => ({
-    name: String(m.name || ""),
-    dosage: String(m.dosage || ""),
-    frequency: String(m.frequency || ""),
+    name: String(m.name ?? ""),
+    dosage: String(m.dosage ?? ""),
+    frequency: String(m.frequency ?? ""),
     duration: m.duration ? String(m.duration) : undefined,
     prescribedFor: m.prescribedFor ? String(m.prescribedFor) : undefined,
     confidence: Number(m.confidence) || 0,
@@ -73,19 +99,19 @@ function transformPrescription(raw: Record<string, unknown>): AnalysisResponse {
     success: true,
     data: { medications, patientInfo },
     confidence: avgConfidence,
-    warnings: (raw.warnings as string[]) || [],
+    warnings: (raw.warnings as string[]) ?? [],
   };
 }
 
 function transformLabReport(raw: Record<string, unknown>): AnalysisResponse {
-  const results = raw.results as Array<Record<string, unknown>> || [];
+  const results = (raw.results as Array<Record<string, unknown>>) ?? [];
   const labResults: LabResult[] = results.map((r) => ({
-    testName: String(r.testName || ""),
-    value: String(r.value || ""),
-    unit: String(r.unit || ""),
-    referenceRange: String(r.referenceRange || ""),
+    testName: String(r.testName ?? ""),
+    value: String(r.value ?? ""),
+    unit: String(r.unit ?? ""),
+    referenceRange: String(r.referenceRange ?? ""),
     status: (r.status as "normal" | "warning" | "critical") || "normal",
-    date: String(raw.date || new Date().toISOString().split("T")[0]),
+    date: String(raw.date ?? new Date().toISOString().split("T")[0]),
     labName: raw.labName ? String(raw.labName) : undefined,
     confidence: Number(r.confidence) || 0,
   }));
@@ -101,16 +127,16 @@ function transformLabReport(raw: Record<string, unknown>): AnalysisResponse {
       patientInfo: { name: raw.patientName ? String(raw.patientName) : undefined },
     },
     confidence: avgConfidence,
-    warnings: labResults.filter((r) => r.status !== "normal").map(
-      (r) => `${r.status.toUpperCase()}: ${r.testName} is ${r.value} ${r.unit} (ref: ${r.referenceRange})`
-    ),
+    warnings: labResults
+      .filter((r) => r.status !== "normal")
+      .map((r) => `${r.status.toUpperCase()}: ${r.testName} is ${r.value} ${r.unit} (ref: ${r.referenceRange})`),
   };
 }
 
 function transformMedicinePhoto(raw: Record<string, unknown>): AnalysisResponse {
   const medication: Medication = {
-    name: String(raw.brandName || raw.genericName || ""),
-    dosage: String(raw.strength || ""),
+    name: String(raw.brandName ?? raw.genericName ?? ""),
+    dosage: String(raw.strength ?? ""),
     frequency: "",
     confidence: Number(raw.confidence) || 0,
   };
@@ -119,21 +145,21 @@ function transformMedicinePhoto(raw: Record<string, unknown>): AnalysisResponse 
     success: true,
     data: { medications: [medication] },
     confidence: Number(raw.confidence) || 0,
-    warnings: (raw.warnings as string[]) || [],
+    warnings: (raw.warnings as string[]) ?? [],
   };
 }
 
 function transformTextInput(raw: Record<string, unknown>): AnalysisResponse {
-  const rawMeds = raw.medications as Array<Record<string, unknown>> || [];
-  const rawConditions = raw.conditions as Array<Record<string, unknown>> || [];
-  const rawAllergies = raw.allergies as Array<Record<string, unknown>> || [];
+  const rawMeds = (raw.medications as Array<Record<string, unknown>>) ?? [];
+  const rawConditions = (raw.conditions as Array<Record<string, unknown>>) ?? [];
+  const rawAllergies = (raw.allergies as Array<Record<string, unknown>>) ?? [];
 
   const medications: Medication[] = rawMeds
     .filter((m) => m.name)
     .map((m) => ({
       name: String(m.name),
-      dosage: String(m.dosage || ""),
-      frequency: String(m.frequency || ""),
+      dosage: String(m.dosage ?? ""),
+      frequency: String(m.frequency ?? ""),
       confidence: Number(m.confidence) || 0,
     }));
 

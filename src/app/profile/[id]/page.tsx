@@ -168,12 +168,13 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
+              <caption className="sr-only">Lab test results showing values, reference ranges, and status</caption>
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-2 pr-4">Test</th>
-                  <th className="text-left py-2 pr-4">Value</th>
-                  <th className="text-left py-2 pr-4">Reference</th>
-                  <th className="text-left py-2">Status</th>
+                  <th scope="col" className="text-left py-2 pr-4">Test</th>
+                  <th scope="col" className="text-left py-2 pr-4">Value</th>
+                  <th scope="col" className="text-left py-2 pr-4">Reference</th>
+                  <th scope="col" className="text-left py-2">Status</th>
                 </tr>
               </thead>
               <tbody>

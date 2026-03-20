@@ -7,9 +7,9 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
   const { id } = params;
 
   // Try by profile ID first, then by shareToken (for emergency view)
-  let profile = getProfile(id);
+  let profile = await getProfile(id);
   if (!profile) {
-    profile = getProfileByShareToken(id);
+    profile = await getProfileByShareToken(id);
   }
 
   if (!profile) {
@@ -21,7 +21,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 
 export async function PUT(request: NextRequest, { params }: RouteContext) {
   const { id } = params;
-  const existing = getProfile(id);
+  const existing = await getProfile(id);
 
   if (!existing) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
@@ -53,7 +53,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
       updated.labResults = [...existing.labResults, ...body.labResults];
     }
 
-    saveProfile(updated);
+    await saveProfile(updated);
     return NextResponse.json({ success: true, profile: updated });
   } catch (error) {
     console.error("Profile update error:", error instanceof Error ? error.message : "Unknown");
@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
   const { id } = params;
 
-  if (!deleteProfile(id)) {
+  if (!(await deleteProfile(id))) {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
   }
 

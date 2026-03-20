@@ -244,20 +244,24 @@ export default function UploadPage() {
             value={textInput}
             onChange={(e) => setTextInput(e.target.value)}
             placeholder="Example: I have Type 2 diabetes, diagnosed in 2019. Currently taking Metformin 500mg twice daily. Allergic to penicillin — causes rash. Had appendectomy in 2015. Blood type is B+."
+            aria-invalid={mode === "text" && textInput.length > 0 && textInput.length < 10 ? "true" : undefined}
+            aria-describedby="text-help"
             className="w-full h-40 p-4 border border-gray-300 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
           />
-          <p className="text-sm text-gray-500 mt-1">
-            {textInput.length} characters
+          <p id="text-help" className="text-sm text-gray-500 mt-1">
+            {textInput.length} characters {textInput.length > 0 && textInput.length < 10 ? "(minimum 10 required)" : ""}
           </p>
         </div>
       )}
 
-      {/* Error */}
-      {error && (
-        <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700" role="alert">
-          {error}
-        </div>
-      )}
+      {/* Error — live region for screen readers */}
+      <div aria-live="assertive" aria-atomic="true">
+        {error && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700" role="alert">
+            {error}
+          </div>
+        )}
+      </div>
 
       {/* Analyze button */}
       <button
@@ -276,7 +280,7 @@ export default function UploadPage() {
         )}
       </button>
 
-      {/* Results */}
+      {/* Results — live region for dynamic content */}
       {result && (
         <div className="mt-8">
           <div className="flex items-center justify-between mb-4">
@@ -331,12 +335,13 @@ export default function UploadPage() {
               <h3 className="font-semibold text-lg mb-3">Lab Results</h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
+                  <caption className="sr-only">Lab test results with values and status indicators</caption>
                   <thead>
                     <tr className="border-b">
-                      <th className="text-left py-2 pr-4">Test</th>
-                      <th className="text-left py-2 pr-4">Value</th>
-                      <th className="text-left py-2 pr-4">Reference</th>
-                      <th className="text-left py-2">Status</th>
+                      <th scope="col" className="text-left py-2 pr-4">Test</th>
+                      <th scope="col" className="text-left py-2 pr-4">Value</th>
+                      <th scope="col" className="text-left py-2 pr-4">Reference</th>
+                      <th scope="col" className="text-left py-2">Status</th>
                     </tr>
                   </thead>
                   <tbody>
