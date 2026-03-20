@@ -1,5 +1,6 @@
 import { Firestore } from "@google-cloud/firestore";
 import { MedicalProfile } from "./types";
+import { logger } from "./logger";
 
 // ---------------------------------------------------------------------------
 // Firestore initialisation (with graceful fallback to in-memory for local dev)
@@ -15,10 +16,9 @@ try {
   });
   firestoreAvailable = true;
 } catch (err) {
-  console.warn(
-    "[store] Firestore initialisation failed – falling back to in-memory store.",
-    err instanceof Error ? err.message : err
-  );
+  logger.warn("Firestore init failed — falling back to in-memory store", {
+    error: err instanceof Error ? err.message : String(err),
+  });
 }
 
 const COLLECTION = "profiles";
@@ -96,7 +96,7 @@ export async function getProfile(
       cacheProfile(profile);
       return profile;
     } catch (err) {
-      console.error("[store] Firestore getProfile error:", err);
+      logger.error("Firestore getProfile error", { error: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -125,7 +125,7 @@ export async function getProfileByShareToken(
       cacheProfile(profile);
       return profile;
     } catch (err) {
-      console.error("[store] Firestore getProfileByShareToken error:", err);
+      logger.error("Firestore getProfileByShareToken error", { error: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -156,7 +156,7 @@ export async function getAllProfiles(): Promise<MedicalProfile[]> {
 
       return profiles;
     } catch (err) {
-      console.error("[store] Firestore getAllProfiles error:", err);
+      logger.error("Firestore getAllProfiles error", { error: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -180,7 +180,7 @@ export async function saveProfile(profile: MedicalProfile): Promise<void> {
         .set(profileToFirestore(profile));
       return;
     } catch (err) {
-      console.error("[store] Firestore saveProfile error:", err);
+      logger.error("Firestore saveProfile error", { error: err instanceof Error ? err.message : String(err) });
     }
   }
 
@@ -202,7 +202,7 @@ export async function deleteProfile(id: string): Promise<boolean> {
       await db.collection(COLLECTION).doc(id).delete();
       return true;
     } catch (err) {
-      console.error("[store] Firestore deleteProfile error:", err);
+      logger.error("Firestore deleteProfile error", { error: err instanceof Error ? err.message : String(err) });
     }
   }
 

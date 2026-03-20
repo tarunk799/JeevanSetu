@@ -1,5 +1,9 @@
 import { GoogleGenerativeAI, Part } from "@google/generative-ai";
 
+if (!process.env.GEMINI_API_KEY) {
+  console.warn("[gemini] GEMINI_API_KEY not set — analysis requests will fail");
+}
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
 const PROMPTS = {

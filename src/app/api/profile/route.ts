@@ -4,6 +4,7 @@ import { MedicalProfile } from "@/lib/types";
 import { getAllProfiles, saveProfile } from "@/lib/store";
 import { createProfileSchema } from "@/lib/validation";
 import { logger } from "@/lib/logger";
+import { verifyAuth } from "@/lib/auth";
 
 export async function GET() {
   const profiles = await getAllProfiles();
@@ -19,6 +20,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Verify authentication (MVP: warn but don't block if unauthenticated)
+    const auth = await verifyAuth(request);
+    if (!auth.authenticated) {
+      logger.warn("Unauthenticated profile creation request — allowing for MVP demo");
+    }
+
     const rawBody = await request.json();
 
     // Validate with Zod
@@ -48,8 +55,16 @@ export async function POST(request: NextRequest) {
       updatedAt: new Date().toISOString(),
     };
 
+    // Attach userId when the caller is authenticated
+    if (auth.authenticated && auth.uid) {
+      profile.userId = auth.uid;
+    }
+
     await saveProfile(profile);
-    logger.info("Profile created", { profileId: profile.id });
+    logger.info("Profile created", {
+      profileId: profile.id,
+      authenticated: auth.authenticated,
+    });
 
     return NextResponse.json({ success: true, profile }, { status: 201 });
   } catch (error) {

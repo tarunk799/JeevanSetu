@@ -39,6 +39,7 @@ export interface EmergencyContact {
 
 export interface MedicalProfile {
   id: string;
+  userId?: string;
   patientName: string;
   dateOfBirth?: string;
   bloodType?: string;

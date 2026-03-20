@@ -30,7 +30,7 @@ export default function EmergencyPage({ params }: { params: { id: string } }) {
       <div className="min-h-screen bg-emergency-bg flex items-center justify-center">
         <div className="text-center">
           <h1 className="text-3xl font-bold text-white mb-4">Profile Not Found</h1>
-          <p className="text-gray-400">This emergency profile link may have expired.</p>
+          <p className="text-gray-300">This emergency profile link may have expired.</p>
         </div>
       </div>
     );
@@ -79,9 +79,9 @@ export default function EmergencyPage({ params }: { params: { id: string } }) {
                   />
                   <span className="text-lg">
                     <strong>{a.allergen}</strong>
-                    <span className="text-red-300 ml-2">({a.severity})</span>
+                    <span className="text-red-200 ml-2">({a.severity})</span>
                     {a.reaction && (
-                      <span className="text-gray-400 ml-2">— {a.reaction}</span>
+                      <span className="text-gray-300 ml-2">— {a.reaction}</span>
                     )}
                   </span>
                 </div>
@@ -100,7 +100,7 @@ export default function EmergencyPage({ params }: { params: { id: string } }) {
               {profile.medications.map((med, i) => (
                 <div key={i} className="border-b border-gray-700 pb-3 last:border-0 last:pb-0">
                   <p className="text-lg font-semibold">{med.name}</p>
-                  <p className="text-gray-400">
+                  <p className="text-gray-300">
                     {[med.dosage, med.frequency].filter(Boolean).join(" • ")}
                   </p>
                 </div>
@@ -148,7 +148,7 @@ export default function EmergencyPage({ params }: { params: { id: string } }) {
                 >
                   <span className="font-medium">{lab.testName}</span>
                   <span className="text-lg font-bold">
-                    {lab.value} <span className="text-sm text-gray-400">{lab.unit}</span>
+                    {lab.value} <span className="text-sm text-gray-300">{lab.unit}</span>
                   </span>
                 </div>
               ))}
@@ -167,7 +167,7 @@ export default function EmergencyPage({ params }: { params: { id: string } }) {
                 <div key={i} className="flex items-center justify-between">
                   <div>
                     <p className="font-semibold text-lg">{contact.name}</p>
-                    <p className="text-gray-400">{contact.relation}</p>
+                    <p className="text-gray-300">{contact.relation}</p>
                   </div>
                   <a
                     href={`tel:${contact.phone}`}
